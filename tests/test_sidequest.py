@@ -38,6 +38,11 @@ async def model_manip(a: int, b: _TestModel) -> _TestModel:
     )
 
 
+@quest(queue=QUEUE)
+async def fail() -> int:
+    raise RuntimeError("boom")
+
+
 class TestSideQuest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         while not QUEUE.empty():
@@ -147,6 +152,27 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, 10)
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 3)
+
+    async def test_workflow_status_tracking(self) -> None:
+        c1 = add(1, 2)
+        c2 = fail()
+        root = add(c1.cast, c2.cast)
+        wf = Workflow(root)
+        await wf.dispatch(self.db)
+        states = {cid: status for cid, _, status in await wf.statuses(self.db)}
+        self.assertEqual(states[c1.id], "PENDING")
+        self.assertEqual(states[c2.id], "PENDING")
+        self.assertEqual(states[root.id], "WAITING")
+        worker = Worker(QUEUE, self.db)
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
+        states = {cid: status for cid, _, status in await wf.statuses(self.db)}
+        self.assertEqual(states[c1.id], "SUCCESS")
+        self.assertEqual(states[c2.id], "FAILED")
+        self.assertEqual(states[root.id], "FAILED")
 
 
 if __name__ == "__main__":

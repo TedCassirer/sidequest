@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Set
 
 from .quests import QuestContext
+from .db import ResultDB
 
 
 def _serialize(value: Any) -> Any:
@@ -51,9 +52,12 @@ def _collect_messages(ctx: QuestContext, seen: Set[str]) -> List[Dict[str, Any]]
     return messages
 
 
-async def dispatch(quest: QuestContext) -> None:
+async def dispatch(quest: QuestContext, db: ResultDB | None = None) -> None:
     """Asynchronously dispatch a quest and its dependencies."""
     queue = quest.queue
     messages = _collect_messages(quest, set())
+    if db is not None:
+        for msg in messages:
+            await db.register_task(msg["id"], msg["quest"], msg.get("deps", []))
     for message in messages:
         await queue.send(message)
