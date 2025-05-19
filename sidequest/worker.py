@@ -74,10 +74,15 @@ class Worker(BaseWorker):
         fn = QUEST_REGISTRY.get(quest_name)
         if not fn:
             await self.db.store(
-                context_id, quest_name, None, f"Unknown quest: {quest_name}"
+                context_id,
+                quest_name,
+                None,
+                f"Unknown quest: {quest_name}",
+                "FAILED",
             )
             return
         try:
+            await self.db.mark_running(context_id)
             for dep in deps:
                 if not await self.db.exists(dep):
                     await self.queue.send(message)
@@ -98,8 +103,8 @@ class Worker(BaseWorker):
             args = await resolve(args)
             kwargs = await resolve(kwargs)
             result = await self.execute_quest(fn, args, kwargs)
-            await self.db.store(context_id, quest_name, result, None)
+            await self.db.store(context_id, quest_name, result, None, "SUCCESS")
         except Exception:  # pylint: disable=broad-except
             tb = traceback.format_exc()
-            await self.db.store(context_id, quest_name, None, tb)
+            await self.db.store(context_id, quest_name, None, tb, "FAILED")
 

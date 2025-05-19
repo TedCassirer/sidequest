@@ -1,9 +1,10 @@
 """Simple SQLite-based result storage."""
 
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import datetime
+import json
 
-from sqlalchemy import String, select
+from sqlalchemy import String, select, update
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -31,6 +32,8 @@ class Result(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     context_id: Mapped[str] = mapped_column(String, unique=True)
     quest_name: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    deps: Mapped[str] = mapped_column(String)
     result: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     timestamp: Mapped[str] = mapped_column(String)
@@ -52,25 +55,97 @@ class ResultDB:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+    async def register_task(
+        self, context_id: str, quest_name: str, deps: List[str]
+    ) -> None:
+        """Insert a new task with ``PENDING`` status."""
+        async with self.session_factory() as session:
+            session.add(
+                Result(
+                    context_id=context_id,
+                    quest_name=quest_name,
+                    status="PENDING",
+                    deps=json.dumps(deps),
+                    result=None,
+                    error=None,
+                    timestamp=datetime.utcnow().isoformat(),
+                )
+            )
+            await session.commit()
+
+    async def mark_running(self, context_id: str) -> None:
+        """Mark the given task as currently running."""
+        async with self.session_factory() as session:
+            await session.execute(
+                update(Result)
+                .where(Result.context_id == context_id)
+                .values(status="RUNNING")
+            )
+            await session.commit()
+
+    async def fetch_status(self, context_id: str) -> Optional[str]:
+        """Return the status for the given task id."""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Result.status).where(Result.context_id == context_id)
+            )
+            row = result.first()
+            return row[0] if row is not None else None
+
+    async def fetch_record(
+        self, context_id: str
+    ) -> Optional[tuple[str, str, Optional[str], List[str]]]:
+        """Fetch the task entry for the given id."""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(
+                    Result.quest_name,
+                    Result.status,
+                    Result.error,
+                    Result.deps,
+                ).where(Result.context_id == context_id)
+            )
+            row = result.first()
+            if row is None:
+                return None
+            quest_name, status, error, deps = row
+            return quest_name, status, error, json.loads(deps)
+
     async def store(
         self,
         context_id: str,
         quest_name: str,
         result: Optional[Any],
         error: Optional[str],
+        status: str,
     ) -> None:
         async with self.session_factory() as session:
-            session.add(
-                Result(
-                    context_id=context_id,
-                    quest_name=quest_name,
+            res = await session.execute(
+                update(Result)
+                .where(Result.context_id == context_id)
+                .values(
                     result=None
                     if result is None
                     else TypeAdapter(Any).dump_json(result).decode(),
                     error=error,
+                    status=status,
                     timestamp=datetime.utcnow().isoformat(),
                 )
             )
+            if res.rowcount == 0:
+                session.add(
+                    Result(
+                        context_id=context_id,
+                        quest_name=quest_name,
+                        status=status,
+                        deps=json.dumps([]),
+                        result=None
+                        if result is None
+                        else TypeAdapter(Any).dump_json(result).decode(),
+                        error=error,
+                        timestamp=datetime.utcnow().isoformat(),
+                    )
+                )
             await session.commit()
 
     async def fetch_all(self) -> list[tuple]:
@@ -123,7 +198,10 @@ class ResultDB:
         """Return ``True`` if a result entry with the given context id exists."""
         async with self.session_factory() as session:
             result = await session.execute(
-                select(Result.id).where(Result.context_id == context_id)
+                select(Result.id).where(
+                    Result.context_id == context_id,
+                    Result.status.in_(["SUCCESS", "FAILED"]),
+                )
             )
             row = result.first()
             return row is not None
