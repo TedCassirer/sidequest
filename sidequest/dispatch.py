@@ -1,9 +1,10 @@
 """Utilities for dispatching quests to a message queue."""
 
-from typing import Any, Dict, List, Set
+from typing import Any, List, Set
 
 from .quests import QuestContext
 from .db import ResultDB
+from .messages import QuestMessage
 
 
 def _serialize(value: Any) -> Any:
@@ -17,8 +18,8 @@ def _serialize(value: Any) -> Any:
     return value
 
 
-def _collect_messages(ctx: QuestContext, seen: Set[str]) -> List[Dict[str, Any]]:
-    messages: List[Dict[str, Any]] = []
+def _collect_messages(ctx: QuestContext, seen: Set[str]) -> List[QuestMessage]:
+    messages: List[QuestMessage] = []
     deps: Set[str] = set()
 
     def handle(value: Any) -> None:
@@ -39,13 +40,13 @@ def _collect_messages(ctx: QuestContext, seen: Set[str]) -> List[Dict[str, Any]]
 
     if ctx.id not in seen:
         messages.append(
-            {
-                "id": ctx.id,
-                "quest": ctx.quest_name,
-                "args": _serialize(ctx.args),
-                "kwargs": _serialize(ctx.kwargs),
-                "deps": list(deps),
-            }
+            QuestMessage(
+                id=ctx.id,
+                quest=ctx.quest_name,
+                args=_serialize(ctx.args),
+                kwargs=_serialize(ctx.kwargs),
+                deps=list(deps),
+            )
         )
         seen.add(ctx.id)
 
@@ -58,6 +59,6 @@ async def dispatch(quest: QuestContext, db: ResultDB | None = None) -> None:
     messages = _collect_messages(quest, set())
     if db is not None:
         for msg in messages:
-            await db.register_task(msg["id"], msg["quest"], msg.get("deps", []))
+            await db.register_task(msg.id, msg.quest, msg.deps)
     for message in messages:
         await queue.send(message)

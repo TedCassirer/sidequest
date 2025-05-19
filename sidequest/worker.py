@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 from abc import ABC, abstractmethod
 import asyncio
 import traceback
@@ -10,6 +10,7 @@ import traceback
 from .queue import InMemoryQueue
 from .quests import QUEST_REGISTRY, QuestWrapper
 from .db import ResultDB
+from .messages import QuestMessage
 
 
 class BaseWorker(ABC):
@@ -28,7 +29,7 @@ class BaseWorker(ABC):
         """Process a single quest if available."""
         if self.queue.empty():
             return
-        message: Dict[str, Any] = await self.queue.receive()
+        message: QuestMessage = await self.queue.receive()
         await self.handle_message(message)
 
     async def run_forever(self) -> None:
@@ -43,7 +44,7 @@ class BaseWorker(ABC):
         await asyncio.sleep(0)
 
     @abstractmethod
-    async def handle_message(self, message: Dict[str, Any]) -> None:
+    async def handle_message(self, message: QuestMessage) -> None:
         """Handle a single quest message."""
 
 
@@ -65,12 +66,12 @@ class Worker(BaseWorker):
 
         return await quest.accept(*args, **kwargs)
 
-    async def handle_message(self, message: Dict[str, Any]) -> None:
-        quest_name: str = message["quest"]
-        context_id: str = message["id"]
-        deps = message.get("deps", [])
-        args = message.get("args", [])
-        kwargs = message.get("kwargs", {})
+    async def handle_message(self, message: QuestMessage) -> None:
+        quest_name: str = message.quest
+        context_id: str = message.id
+        deps = message.deps
+        args = message.args
+        kwargs = message.kwargs
         fn = QUEST_REGISTRY.get(quest_name)
         if not fn:
             await self.db.store(
