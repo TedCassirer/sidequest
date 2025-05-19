@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from pydantic import TypeAdapter
 
 
 class Base(DeclarativeBase):
@@ -51,7 +52,9 @@ class ResultDB:
                 Result(
                     context_id=context_id,
                     quest_name=quest_name,
-                    result=None if result is None else str(result),
+                    result=None
+                    if result is None
+                    else TypeAdapter(Any).dump_json(result).decode(),
                     error=error,
                     timestamp=datetime.utcnow().isoformat(),
                 )
@@ -70,7 +73,13 @@ class ResultDB:
                 )
             )
             rows = result.all()
-        return [tuple(row) for row in rows]
+        parsed: list[tuple] = []
+        for row in rows:
+            res = row[2]
+            if res is not None:
+                res = TypeAdapter(Any).validate_json(res)
+            parsed.append((row[0], row[1], res, row[3], row[4]))
+        return parsed
 
     async def fetch_result(self, context_id: str) -> Optional[Any]:
         async with self.session_factory() as session:
@@ -78,7 +87,12 @@ class ResultDB:
                 select(Result.result).where(Result.context_id == context_id)
             )
             row = result.first()
-            return None if row is None else row[0]
+            if row is None:
+                return None
+            value = row[0]
+            if value is None:
+                return None
+            return TypeAdapter(Any).validate_json(value)
           
     async def teardown(self) -> None:
         """Drop all tables and dispose of the engine."""
