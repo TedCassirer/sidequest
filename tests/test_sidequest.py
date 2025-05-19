@@ -27,6 +27,9 @@ class TestSidequest(unittest.IsolatedAsyncioTestCase):
         self.db = ResultDB()
         await self.db.setup()
 
+    async def asyncTearDown(self) -> None:
+        await self.db.teardown()
+
     async def test_async_worker_executes_quest_and_stores_result(self) -> None:
         ctx = async_add(1, 2)
         await dispatch(ctx)
