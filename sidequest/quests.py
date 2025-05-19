@@ -1,6 +1,7 @@
 """Quest decorator and registry."""
 
 from dataclasses import dataclass, field
+from inspect import Signature
 from typing import (
     Any,
     Callable,
@@ -60,10 +61,20 @@ class QuestWrapper(Generic[P_params, T_result]):
 
     _func: QuestImplementation[P_params, T_result]
     _queue: InMemoryQueue
+    _signature: Signature
 
-    def __call__(self, *args, **kwargs) -> QuestContext:
+    def __call__(self, *args: P_params.args, **kwargs: P_params.kwargs) -> QuestContext:
         """Invoke the quest with the given arguments."""
         return QuestContext(self._func.__name__, self._queue, args, kwargs)
+
+    async def accept(self, *args: P_params.args, **kwargs: P_params.kwargs) -> T_result:
+        """Accept and execute the quest with the given arguments."""
+        return await self._func(*args, **kwargs)
+
+    @property
+    def return_type(self) -> type:
+        """Return the return type of the quest."""
+        return self._signature.return_annotation
 
 
 def quest(
@@ -77,7 +88,7 @@ def quest(
     def decorator(
         func: QuestImplementation[P_params, T_result],
     ) -> QuestWrapper[P_params, T_result]:
-        quest_wrapper = QuestWrapper(func, queue)
+        quest_wrapper = QuestWrapper(func, queue, Signature.from_callable(func))
         QUEST_REGISTRY[func.__name__] = quest_wrapper
         return quest_wrapper
 

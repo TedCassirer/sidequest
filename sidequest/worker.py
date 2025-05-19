@@ -31,7 +31,6 @@ class Worker:
             )
             return
         try:
-            import inspect
 
             async def resolve(value: Any) -> Any:
                 if isinstance(value, dict) and "__ref__" in value:
@@ -46,11 +45,7 @@ class Worker:
 
             args = await resolve(args)
             kwargs = await resolve(kwargs)
-
-            if inspect.iscoroutinefunction(fn):
-                result = await fn(*args, **kwargs)
-            else:
-                result = fn(*args, **kwargs)
+            result = await fn.accept(*args, **kwargs)
             await self.db.store(context_id, quest_name, result, None)
         except Exception:  # pylint: disable=broad-except
             tb = traceback.format_exc()
