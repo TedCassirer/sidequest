@@ -10,7 +10,8 @@ sqlalchemy = "^2.0"
 aiosqlite = "^0.21"
 greenlet = "^3.2.2"
 
-[tool.poetry.dev-dependencies]
+
+[tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 pytest-asyncio = "^0.26.0"
 
