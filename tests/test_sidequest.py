@@ -37,7 +37,7 @@ async def model_manip(a: int, b: _TestModel) -> _TestModel:
     )
 
 
-class TestSidequest(unittest.IsolatedAsyncioTestCase):
+class TestSideQuest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         while not QUEUE.empty():
             await QUEUE.receive()
