@@ -19,6 +19,9 @@ jobs:
       - name: Install dependencies
         run: |
           poetry install --no-interaction
+      - name: Run pyright
+        run: |
+          poetry run pyright
       - name: Run tests
         run: |
           poetry run pytest
