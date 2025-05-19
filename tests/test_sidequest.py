@@ -10,6 +10,7 @@ from sidequest import (
     InMemoryQueue,
     ResultDB,
     QuestContext,
+    Workflow,
 )
 
 
@@ -96,6 +97,22 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         result = await self.db.fetch_result(ctx3.id)
         self.assertEqual(result, 18)
 
+    async def test_workflow_object(self) -> None:
+        ctx1 = add(1, 2)
+        ctx2 = add(5, 10)
+        root = add(ctx1.cast, ctx2.cast)
+        wf = Workflow(root)
+        await wf.dispatch()
+        worker = Worker(QUEUE, self.db)
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
+        self.assertEqual(len(wf.contexts()), 3)
+        result = await wf.result(self.db)
+        self.assertEqual(result, 18)
+
     async def test_quest_with_model(self) -> None:
         ctx = model_manip(1, _TestModel(name="test", value=2))
         await dispatch(ctx)
@@ -111,6 +128,25 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(quest_name, "model_manip")
         self.assertEqual(result, _TestModel(name="test_modified", value=3))
         self.assertIsNone(error)
+
+    async def test_multiple_workers(self) -> None:
+        ctx1 = add(1, 2)
+        ctx2 = add(3, 4)
+        ctx3 = add(ctx1.cast, ctx2.cast)
+        await dispatch(ctx3)
+        w1 = Worker(QUEUE, self.db)
+        w2 = Worker(QUEUE, self.db)
+        t1 = asyncio.create_task(w1.run_forever())
+        t2 = asyncio.create_task(w2.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        w1.stop()
+        w2.stop()
+        await asyncio.gather(t1, t2)
+        result = await self.db.fetch_result(ctx3.id)
+        self.assertEqual(result, 10)
+        results = await self.db.fetch_all()
+        self.assertEqual(len(results), 3)
 
 
 if __name__ == "__main__":

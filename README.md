@@ -37,6 +37,14 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+Multiple workers can consume from the same queue concurrently:
+
+```python
+worker1 = Worker(QUEUE, db)
+worker2 = Worker(QUEUE, db)
+await asyncio.gather(worker1.run_forever(), worker2.run_forever())
+```
+
 ## Custom workers
 
 `Worker` is built on top of the :class:`BaseWorker` class. You can subclass
@@ -80,6 +88,33 @@ async def chain() -> None:
     print(await db.fetch_result(combined.id))
 
 asyncio.run(chain())
+```
+
+### Workflows
+
+Workflows group a quest and all of its dependencies so that they can be
+dispatched and inspected together.
+
+```python
+@quest(queue=QUEUE)
+async def add(a: int, b: int) -> int:
+    await asyncio.sleep(0)
+    return a + b
+
+@quest(queue=QUEUE)
+async def multiply(a: int, b: int) -> int:
+    return a * b
+
+async def run_workflow() -> None:
+    db = ResultDB()
+    await db.setup()
+    wf = Workflow(multiply(add(1, 2).cast, add(3, 4).cast))
+    await wf.dispatch()
+    worker = Worker(QUEUE, db)
+    await worker.run_forever()
+    print(await wf.result(db))
+
+asyncio.run(run_workflow())
 ```
 
 ### Custom input and result types
