@@ -52,6 +52,7 @@ class HeartbeatWorker(Worker):
         # emit heartbeat here
         return await super().execute_quest(quest, args, kwargs)
 
+```
 
 ### Chaining quests
 
