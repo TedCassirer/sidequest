@@ -6,6 +6,7 @@ from .worker import Worker, BaseWorker
 from .queue import InMemoryQueue
 from .db import ResultDB
 from .workflow import Workflow
+from .messages import QuestMessage
 
 __all__ = [
     "quest",
@@ -17,4 +18,5 @@ __all__ = [
     "Workflow",
     "ResultDB",
     "QUEST_REGISTRY",
+    "QuestMessage",
 ]
