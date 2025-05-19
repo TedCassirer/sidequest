@@ -79,3 +79,9 @@ class ResultDB:
             )
             row = result.first()
             return None if row is None else row[0]
+          
+    async def teardown(self) -> None:
+        """Drop all tables and dispose of the engine."""
+        async with self.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await self.engine.dispose()
