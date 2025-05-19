@@ -1,19 +1,17 @@
 """Sidequest task management library."""
 
 from .quests import quest, QUEST_REGISTRY, QuestContext
-from .dispatch import adispatch
-from .worker import AsyncWorker
-from .queue import AsyncInMemoryQueue
-from .db import AsyncResultDB
+from .dispatch import dispatch
+from .worker import Worker
+from .queue import InMemoryQueue
+from .db import ResultDB
 
 __all__ = [
     "quest",
-    "adispatch",
-    "AsyncWorker",
-    "AsyncInMemoryQueue",
+    "dispatch",
+    "Worker",
+    "InMemoryQueue",
     "QuestContext",
-    "AsyncResultDB",
+    "ResultDB",
     "QUEST_REGISTRY"
 ]
-
-__all__.append("QUEST_REGISTRY")

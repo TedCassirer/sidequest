@@ -3,15 +3,15 @@ import unittest
 
 from sidequest import (
     quest,
-    adispatch,
-    AsyncWorker,
-    AsyncInMemoryQueue,
-    AsyncResultDB,
+    dispatch,
+    Worker,
+    InMemoryQueue,
+    ResultDB,
     QuestContext,
 )
 
 
-ASYNC_QUEUE = AsyncInMemoryQueue()
+ASYNC_QUEUE = InMemoryQueue()
 
 
 @quest(queue=ASYNC_QUEUE)
@@ -26,10 +26,10 @@ class TestAsyncSidequest(unittest.IsolatedAsyncioTestCase):
             await ASYNC_QUEUE.receive()
 
     async def test_async_worker_executes_quest_and_stores_result(self) -> None:
-        db = AsyncResultDB()
+        db = ResultDB()
         ctx = async_add(1, 2)
-        await adispatch(ctx)
-        worker = AsyncWorker(ASYNC_QUEUE, db)
+        await dispatch(ctx)
+        worker = Worker(ASYNC_QUEUE, db)
         await worker.run_forever()
         results = await db.fetch_all()
         self.assertEqual(len(results), 1)
@@ -39,11 +39,11 @@ class TestAsyncSidequest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(error)
 
     async def test_async_quest_function_returns_context(self) -> None:
-        db = AsyncResultDB()
+        db = ResultDB()
         ctx = async_add(1, 2)
         self.assertIsInstance(ctx, QuestContext)
-        await adispatch(ctx)
-        worker = AsyncWorker(ASYNC_QUEUE, db)
+        await dispatch(ctx)
+        worker = Worker(ASYNC_QUEUE, db)
         await worker.run_forever()
         results = await db.fetch_all()
         self.assertEqual(len(results), 1)

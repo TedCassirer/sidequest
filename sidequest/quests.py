@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Tuple, Optional
 
-from .queue import AsyncInMemoryQueue
+from .queue import InMemoryQueue
 from functools import wraps
 
 QUEST_REGISTRY: Dict[str, Callable] = {}
@@ -14,7 +14,7 @@ class QuestContext:
     """Container for quest execution details."""
 
     quest_name: str
-    queue: AsyncInMemoryQueue
+    queue: InMemoryQueue
     args: Tuple[Any, ...] = field(default_factory=tuple)
     kwargs: Dict[str, Any] = field(default_factory=dict)
 
@@ -22,7 +22,7 @@ class QuestContext:
 def quest(
     fn: Optional[Callable] = None,
     *,
-    queue: Optional[AsyncInMemoryQueue] = None,
+    queue: Optional[InMemoryQueue] = None,
 ) -> Callable:
     """Decorator to register a function as a quest."""
 

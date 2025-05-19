@@ -3,17 +3,17 @@
 from typing import Any, Dict
 import traceback
 
-from .queue import AsyncInMemoryQueue
+from .queue import InMemoryQueue
 from .quests import QUEST_REGISTRY
-from .db import AsyncResultDB
+from .db import ResultDB
 
 
 
 
-class AsyncWorker:
+class Worker:
     """Asynchronous worker that consumes quests from a queue."""
 
-    def __init__(self, queue: AsyncInMemoryQueue, db: AsyncResultDB) -> None:
+    def __init__(self, queue: InMemoryQueue, db: ResultDB) -> None:
         self.queue = queue
         self.db = db
 

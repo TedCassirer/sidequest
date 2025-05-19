@@ -26,7 +26,7 @@ class Result(Base):
 
 
 
-class AsyncResultDB:
+class ResultDB:
     """Asynchronous database using SQLAlchemy."""
 
     def __init__(self, url: str = "sqlite+aiosqlite:///:memory:") -> None:

@@ -8,26 +8,29 @@ a SQLite database.
 ```python
 from sidequest import (
     quest,
-    adispatch,
-    AsyncWorker,
-    AsyncInMemoryQueue,
-    AsyncResultDB,
+    dispatch,
+    Worker,
+    InMemoryQueue,
+    ResultDB,
 )
 import asyncio
 
-QUEUE = AsyncInMemoryQueue()
+QUEUE = InMemoryQueue()
+
 
 @quest(queue=QUEUE)
 async def hello(name):
     return f"Hello {name}!"
 
+
 async def main() -> None:
-    db = AsyncResultDB()
+    db = ResultDB()
     hello_ctx = hello("World")
-    await adispatch(hello_ctx)
-    worker = AsyncWorker(QUEUE, db)
+    await dispatch(hello_ctx)
+    worker = Worker(QUEUE, db)
     await worker.run_forever()
     print(await db.fetch_all())
+
 
 asyncio.run(main())
 ```

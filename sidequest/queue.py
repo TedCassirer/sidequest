@@ -5,7 +5,7 @@ from typing import Any
 import asyncio
 
 
-class AsyncInMemoryQueue:
+class InMemoryQueue:
     """Asynchronous in-memory queue using :class:`asyncio.Queue`."""
 
     def __init__(self) -> None:

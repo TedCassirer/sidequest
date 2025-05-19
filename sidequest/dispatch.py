@@ -5,7 +5,7 @@ from typing import Any, Dict
 from .quests import QuestContext
 
 
-async def adispatch(quest: QuestContext) -> None:
+async def dispatch(quest: QuestContext) -> None:
     """Asynchronously dispatch a quest using the queue stored in the context."""
     queue = quest.queue
     quest_name = quest.quest_name
