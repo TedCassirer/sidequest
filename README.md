@@ -10,6 +10,7 @@ from sidequest import (
     quest,
     dispatch,
     Worker,
+    BaseWorker,
     InMemoryQueue,
     ResultDB,
 )
@@ -34,6 +35,23 @@ async def main() -> None:
 
 
 asyncio.run(main())
+```
+
+## Custom workers
+
+`Worker` is built on top of the :class:`BaseWorker` class. You can subclass
+`BaseWorker` to implement custom behaviour. For example, a worker that sends
+heartbeat signals for long running quests might override :meth:`handle_message`
+or :meth:`execute_quest`.
+
+```python
+from sidequest import Worker
+
+class HeartbeatWorker(Worker):
+    async def execute_quest(self, quest, args, kwargs):
+        # emit heartbeat here
+        return await super().execute_quest(quest, args, kwargs)
+
 ```
 
 ### Chaining quests
