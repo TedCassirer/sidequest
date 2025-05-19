@@ -18,10 +18,18 @@ def _serialize(value: Any) -> Any:
 
 def _collect_messages(ctx: QuestContext, seen: Set[str]) -> List[Dict[str, Any]]:
     messages: List[Dict[str, Any]] = []
+    deps: Set[str] = set()
 
-    def handle(arg: Any) -> None:
-        if isinstance(arg, QuestContext):
-            messages.extend(_collect_messages(arg, seen))
+    def handle(value: Any) -> None:
+        if isinstance(value, QuestContext):
+            messages.extend(_collect_messages(value, seen))
+            deps.add(value.id)
+        elif isinstance(value, (list, tuple)):
+            for v in value:
+                handle(v)
+        elif isinstance(value, dict):
+            for v in value.values():
+                handle(v)
 
     for arg in ctx.args:
         handle(arg)
@@ -35,6 +43,7 @@ def _collect_messages(ctx: QuestContext, seen: Set[str]) -> List[Dict[str, Any]]
                 "quest": ctx.quest_name,
                 "args": _serialize(ctx.args),
                 "kwargs": _serialize(ctx.kwargs),
+                "deps": list(deps),
             }
         )
         seen.add(ctx.id)

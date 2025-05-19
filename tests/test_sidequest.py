@@ -129,6 +129,25 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, _TestModel(name="test_modified", value=3))
         self.assertIsNone(error)
 
+    async def test_multiple_workers(self) -> None:
+        ctx1 = add(1, 2)
+        ctx2 = add(3, 4)
+        ctx3 = add(ctx1.cast, ctx2.cast)
+        await dispatch(ctx3)
+        w1 = Worker(QUEUE, self.db)
+        w2 = Worker(QUEUE, self.db)
+        t1 = asyncio.create_task(w1.run_forever())
+        t2 = asyncio.create_task(w2.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        w1.stop()
+        w2.stop()
+        await asyncio.gather(t1, t2)
+        result = await self.db.fetch_result(ctx3.id)
+        self.assertEqual(result, 10)
+        results = await self.db.fetch_all()
+        self.assertEqual(len(results), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -48,7 +48,12 @@ class BaseWorker(ABC):
 
 
 class Worker(BaseWorker):
-    """Default worker implementation that executes quests sequentially."""
+    """Default worker implementation that executes quests.
+
+    Multiple workers can operate on the same queue concurrently. A worker will
+    postpone execution of a quest until all of its dependencies have been
+    processed.
+    """
 
     async def execute_quest(
         self,
@@ -63,6 +68,7 @@ class Worker(BaseWorker):
     async def handle_message(self, message: Dict[str, Any]) -> None:
         quest_name: str = message["quest"]
         context_id: str = message["id"]
+        deps = message.get("deps", [])
         args = message.get("args", [])
         kwargs = message.get("kwargs", {})
         fn = QUEST_REGISTRY.get(quest_name)
@@ -72,6 +78,11 @@ class Worker(BaseWorker):
             )
             return
         try:
+            for dep in deps:
+                if not await self.db.exists(dep):
+                    await self.queue.send(message)
+                    await asyncio.sleep(0)
+                    return
 
             async def resolve(value: Any) -> Any:
                 if isinstance(value, dict) and "__ref__" in value:

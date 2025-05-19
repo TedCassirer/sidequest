@@ -37,6 +37,14 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+Multiple workers can consume from the same queue concurrently:
+
+```python
+worker1 = Worker(QUEUE, db)
+worker2 = Worker(QUEUE, db)
+await asyncio.gather(worker1.run_forever(), worker2.run_forever())
+```
+
 ## Custom workers
 
 `Worker` is built on top of the :class:`BaseWorker` class. You can subclass
