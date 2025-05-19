@@ -3,20 +3,26 @@
 from typing import Optional, Any
 from datetime import datetime
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    MetaData,
-    String,
-    Table,
-    insert,
-    select,
-)
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    create_async_engine,
-)
+from sqlalchemy import Integer, String, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+
+
+class Base(DeclarativeBase):
+    """Declarative base class."""
+    pass
+
+
+class Result(Base):
+    """ORM model representing stored quest results."""
+
+    __tablename__ = "results"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    quest_name: Mapped[str] = mapped_column(String)
+    result: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    timestamp: Mapped[str] = mapped_column(String)
 
 
 
@@ -25,15 +31,8 @@ class AsyncResultDB:
 
     def __init__(self, url: str = "sqlite+aiosqlite:///:memory:") -> None:
         self.engine: AsyncEngine = create_async_engine(url, future=True)
-        self.metadata = MetaData()
-        self.results = Table(
-            "results",
-            self.metadata,
-            Column("id", Integer, primary_key=True, autoincrement=True),
-            Column("quest_name", String),
-            Column("result", String),
-            Column("error", String),
-            Column("timestamp", String),
+        self.session_factory = sessionmaker(
+            self.engine, expire_on_commit=False, class_=AsyncSession
         )
 
         import asyncio
@@ -42,27 +41,30 @@ class AsyncResultDB:
 
     async def _init_tables(self) -> None:
         async with self.engine.begin() as conn:
-            await conn.run_sync(self.metadata.create_all)
+            await conn.run_sync(Base.metadata.create_all)
 
-    async def store(self, quest_name: str, result: Optional[Any], error: Optional[str]) -> None:
-        async with self.engine.begin() as conn:
-            await conn.execute(
-                insert(self.results).values(
+    async def store(
+        self, quest_name: str, result: Optional[Any], error: Optional[str]
+    ) -> None:
+        async with self.session_factory() as session:
+            session.add(
+                Result(
                     quest_name=quest_name,
                     result=None if result is None else str(result),
                     error=error,
                     timestamp=datetime.utcnow().isoformat(),
                 )
             )
+            await session.commit()
 
     async def fetch_all(self) -> list[tuple]:
-        async with AsyncSession(self.engine) as session:
+        async with self.session_factory() as session:
             result = await session.execute(
                 select(
-                    self.results.c.quest_name,
-                    self.results.c.result,
-                    self.results.c.error,
-                    self.results.c.timestamp,
+                    Result.quest_name,
+                    Result.result,
+                    Result.error,
+                    Result.timestamp,
                 )
             )
             rows = result.all()
