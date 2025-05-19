@@ -10,6 +10,7 @@ from sidequest import (
     InMemoryQueue,
     ResultDB,
     QuestContext,
+    Workflow,
 )
 
 
@@ -94,6 +95,22 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 3)
         result = await self.db.fetch_result(ctx3.id)
+        self.assertEqual(result, 18)
+
+    async def test_workflow_object(self) -> None:
+        ctx1 = add(1, 2)
+        ctx2 = add(5, 10)
+        root = add(ctx1.cast, ctx2.cast)
+        wf = Workflow(root)
+        await wf.dispatch()
+        worker = Worker(QUEUE, self.db)
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
+        self.assertEqual(len(wf.contexts()), 3)
+        result = await wf.result(self.db)
         self.assertEqual(result, 18)
 
     async def test_quest_with_model(self) -> None:

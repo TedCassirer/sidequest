@@ -82,6 +82,33 @@ async def chain() -> None:
 asyncio.run(chain())
 ```
 
+### Workflows
+
+Workflows group a quest and all of its dependencies so that they can be
+dispatched and inspected together.
+
+```python
+@quest(queue=QUEUE)
+async def add(a: int, b: int) -> int:
+    await asyncio.sleep(0)
+    return a + b
+
+@quest(queue=QUEUE)
+async def multiply(a: int, b: int) -> int:
+    return a * b
+
+async def run_workflow() -> None:
+    db = ResultDB()
+    await db.setup()
+    wf = Workflow(multiply(add(1, 2).cast, add(3, 4).cast))
+    await wf.dispatch()
+    worker = Worker(QUEUE, db)
+    await worker.run_forever()
+    print(await wf.result(db))
+
+asyncio.run(run_workflow())
+```
+
 ### Custom input and result types
 
 Quests can accept and return custom objects. When using a `BaseModel` or dataclass Pydantic will automatically handle serialization.
