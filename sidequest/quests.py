@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Tuple, Optional
 
 from .queue import AsyncInMemoryQueue
+from functools import wraps
 
 QUEST_REGISTRY: Dict[str, Callable] = {}
 
@@ -28,11 +29,10 @@ def quest(
     def decorator(func: Callable) -> Callable:
         QUEST_REGISTRY[func.__name__] = func
 
+        @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> QuestContext:
             return QuestContext(func.__name__, queue, args, kwargs)
 
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__ = func.__doc__
         return wrapper
 
     if fn is not None:
