@@ -2,11 +2,15 @@
 
 from typing import Any, Dict
 
-from .queue import InMemoryQueue, AsyncInMemoryQueue
+from .quests import QuestContext
 
 
-def dispatch(queue: InMemoryQueue, quest_name: str, *args: Any, **kwargs: Any) -> None:
-    """Dispatch a quest to the provided queue."""
+def dispatch(quest: QuestContext) -> None:
+    """Dispatch a quest using the queue stored in the context."""
+    queue = quest.queue
+    quest_name = quest.quest_name
+    args = quest.args
+    kwargs = quest.kwargs
     message: Dict[str, Any] = {
         "quest": quest_name,
         "args": args,
@@ -15,10 +19,12 @@ def dispatch(queue: InMemoryQueue, quest_name: str, *args: Any, **kwargs: Any) -
     queue.send(message)
 
 
-async def adispatch(
-    queue: AsyncInMemoryQueue, quest_name: str, *args: Any, **kwargs: Any
-) -> None:
-    """Asynchronously dispatch a quest to the provided queue."""
+async def adispatch(quest: QuestContext) -> None:
+    """Asynchronously dispatch a quest using the queue stored in the context."""
+    queue = quest.queue
+    quest_name = quest.quest_name
+    args = quest.args
+    kwargs = quest.kwargs
     message: Dict[str, Any] = {
         "quest": quest_name,
         "args": args,

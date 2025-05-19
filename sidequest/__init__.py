@@ -1,6 +1,6 @@
 """Sidequest task management library."""
 
-from .quests import quest, QUEST_REGISTRY
+from .quests import quest, QUEST_REGISTRY, QuestContext
 from .dispatch import dispatch, adispatch
 from .worker import Worker, AsyncWorker
 from .queue import InMemoryQueue, AsyncInMemoryQueue
@@ -15,6 +15,7 @@ __all__ = [
     "InMemoryQueue",
     "AsyncInMemoryQueue",
     "ResultDB",
+    "QuestContext",
 ]
 
 if SQLALCHEMY_AVAILABLE:

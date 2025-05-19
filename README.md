@@ -8,15 +8,16 @@ a SQLite database.
 ```python
 from sidequest import quest, dispatch, Worker, InMemoryQueue, ResultDB
 
-@quest
+QUEUE = InMemoryQueue()
+
+@quest(queue=QUEUE)
 def hello(name):
     return f"Hello {name}!"
 
-queue = InMemoryQueue()
 db = ResultDB()
-
-dispatch(queue, "hello", "World")
-worker = Worker(queue, db)
+hello_ctx = hello("World")
+dispatch(hello_ctx)
+worker = Worker(QUEUE, db)
 worker.run_forever()
 
 print(db.fetch_all())

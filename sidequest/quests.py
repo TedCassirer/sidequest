@@ -1,11 +1,41 @@
 """Quest decorator and registry."""
 
-from typing import Callable, Dict
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, Tuple, Optional, Union
+
+from .queue import InMemoryQueue, AsyncInMemoryQueue
 
 QUEST_REGISTRY: Dict[str, Callable] = {}
 
 
-def quest(fn: Callable) -> Callable:
+@dataclass
+class QuestContext:
+    """Container for quest execution details."""
+
+    quest_name: str
+    queue: Union[InMemoryQueue, AsyncInMemoryQueue]
+    args: Tuple[Any, ...] = field(default_factory=tuple)
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+
+
+def quest(
+    fn: Optional[Callable] = None,
+    *,
+    queue: Optional[Union[InMemoryQueue, AsyncInMemoryQueue]] = None,
+) -> Callable:
     """Decorator to register a function as a quest."""
-    QUEST_REGISTRY[fn.__name__] = fn
-    return fn
+
+    def decorator(func: Callable) -> Callable:
+        QUEST_REGISTRY[func.__name__] = func
+
+        def wrapper(*args: Any, **kwargs: Any) -> QuestContext:
+            return QuestContext(func.__name__, queue, args, kwargs)
+
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        return wrapper
+
+    if fn is not None:
+        return decorator(fn)
+
+    return decorator
