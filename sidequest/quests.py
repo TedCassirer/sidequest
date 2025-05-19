@@ -1,9 +1,9 @@
 """Quest decorator and registry."""
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Tuple, Optional, Union
+from typing import Any, Callable, Dict, Tuple, Optional
 
-from .queue import InMemoryQueue, AsyncInMemoryQueue
+from .queue import AsyncInMemoryQueue
 
 QUEST_REGISTRY: Dict[str, Callable] = {}
 
@@ -13,7 +13,7 @@ class QuestContext:
     """Container for quest execution details."""
 
     quest_name: str
-    queue: Union[InMemoryQueue, AsyncInMemoryQueue]
+    queue: AsyncInMemoryQueue
     args: Tuple[Any, ...] = field(default_factory=tuple)
     kwargs: Dict[str, Any] = field(default_factory=dict)
 
@@ -21,7 +21,7 @@ class QuestContext:
 def quest(
     fn: Optional[Callable] = None,
     *,
-    queue: Optional[Union[InMemoryQueue, AsyncInMemoryQueue]] = None,
+    queue: Optional[AsyncInMemoryQueue] = None,
 ) -> Callable:
     """Decorator to register a function as a quest."""
 
