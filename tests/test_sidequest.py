@@ -37,7 +37,7 @@ class TestSidequest(unittest.IsolatedAsyncioTestCase):
         await worker.run_forever()
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
-        quest_name, result, error, _ = results[0]
+        _, quest_name, result, error, _ = results[0]
         self.assertEqual(quest_name, "async_add")
         self.assertEqual(result, "3")
         self.assertIsNone(error)
@@ -50,10 +50,22 @@ class TestSidequest(unittest.IsolatedAsyncioTestCase):
         await worker.run_forever()
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
-        quest_name, result, error, _ = results[0]
+        _, quest_name, result, error, _ = results[0]
         self.assertEqual(quest_name, "async_add")
         self.assertEqual(result, "3")
         self.assertIsNone(error)
+
+    async def test_workflow_chaining(self) -> None:
+        ctx1 = async_add(1, 2)
+        ctx2 = async_add(5, 10)
+        ctx3 = async_add(ctx1.cast, ctx2.cast)
+        await dispatch(ctx3)
+        worker = Worker(QUEUE, self.db)
+        await worker.run_forever()
+        results = await self.db.fetch_all()
+        self.assertEqual(len(results), 3)
+        result = await self.db.fetch_result(ctx3.id)
+        self.assertEqual(result, "18")
 
 
 if __name__ == "__main__":

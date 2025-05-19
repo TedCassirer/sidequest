@@ -23,23 +23,38 @@ class Worker:
             return
         message: Dict[str, Any] = await self.queue.receive()
         quest_name: str = message["quest"]
+        context_id: str = message["id"]
         args = message.get("args", [])
         kwargs = message.get("kwargs", {})
         fn = QUEST_REGISTRY.get(quest_name)
         if not fn:
-            await self.db.store(quest_name, None, f"Unknown quest: {quest_name}")
+            await self.db.store(context_id, quest_name, None, f"Unknown quest: {quest_name}")
             return
         try:
             import inspect
+
+            async def resolve(value: Any) -> Any:
+                if isinstance(value, dict) and "__ref__" in value:
+                    return await self.db.fetch_result(value["__ref__"])
+                if isinstance(value, list):
+                    return [await resolve(v) for v in value]
+                if isinstance(value, tuple):
+                    return tuple([await resolve(v) for v in value])
+                if isinstance(value, dict):
+                    return {k: await resolve(v) for k, v in value.items()}
+                return value
+
+            args = await resolve(args)
+            kwargs = await resolve(kwargs)
 
             if inspect.iscoroutinefunction(fn):
                 result = await fn(*args, **kwargs)
             else:
                 result = fn(*args, **kwargs)
-            await self.db.store(quest_name, result, None)
+            await self.db.store(context_id, quest_name, result, None)
         except Exception:  # pylint: disable=broad-except
             tb = traceback.format_exc()
-            await self.db.store(quest_name, None, tb)
+            await self.db.store(context_id, quest_name, None, tb)
 
     async def run_forever(self) -> None:
         """Continuously process quests until queue is empty."""
