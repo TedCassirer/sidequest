@@ -10,6 +10,7 @@ import traceback
 from .queue import InMemoryQueue
 from .quests import QUEST_REGISTRY, QuestWrapper
 from .db import ResultDB
+from .runtime import ACTIVE_WORKFLOW
 
 
 class BaseWorker(ABC):
@@ -102,7 +103,15 @@ class Worker(BaseWorker):
 
             args = await resolve(args)
             kwargs = await resolve(kwargs)
-            result = await self.execute_quest(fn, args, kwargs)
+            token = None
+            workflow_id = message.get("wf")
+            if workflow_id is not None:
+                token = ACTIVE_WORKFLOW.set(workflow_id)
+            try:
+                result = await self.execute_quest(fn, args, kwargs)
+            finally:
+                if token is not None:
+                    ACTIVE_WORKFLOW.reset(token)
             await self.db.store(context_id, quest_name, result, None, "SUCCESS")
         except Exception:  # pylint: disable=broad-except
             tb = traceback.format_exc()

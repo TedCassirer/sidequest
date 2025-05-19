@@ -34,6 +34,7 @@ class Result(Base):
     quest_name: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String)
     deps: Mapped[str] = mapped_column(String)
+    workflow_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     result: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     timestamp: Mapped[str] = mapped_column(String)
@@ -56,7 +57,7 @@ class ResultDB:
             await conn.run_sync(Base.metadata.create_all)
 
     async def register_task(
-        self, context_id: str, quest_name: str, deps: List[str]
+        self, context_id: str, quest_name: str, deps: List[str], workflow_id: Optional[str]
     ) -> None:
         """Insert a new task with ``PENDING`` status."""
         async with self.session_factory() as session:
@@ -66,6 +67,7 @@ class ResultDB:
                     quest_name=quest_name,
                     status="PENDING",
                     deps=json.dumps(deps),
+                    workflow_id=workflow_id,
                     result=None,
                     error=None,
                     timestamp=datetime.utcnow().isoformat(),
@@ -139,6 +141,7 @@ class ResultDB:
                         quest_name=quest_name,
                         status=status,
                         deps=json.dumps([]),
+                        workflow_id=None,
                         result=None
                         if result is None
                         else TypeAdapter(Any).dump_json(result).decode(),
