@@ -3,9 +3,10 @@
 from typing import Optional, Any
 from datetime import datetime
 
-from sqlalchemy import Integer, String, select
+from sqlalchemy import String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+import asyncio
 
 
 class Base(DeclarativeBase):
@@ -35,9 +36,8 @@ class ResultDB:
             self.engine, expire_on_commit=False, class_=AsyncSession
         )
 
-        import asyncio
-
-        asyncio.run(self._init_tables())
+    async def setup(self) -> None:
+        await self._init_tables()
 
     async def _init_tables(self) -> None:
         async with self.engine.begin() as conn:
