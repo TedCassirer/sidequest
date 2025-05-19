@@ -1,6 +1,6 @@
 """SideQuest task management library."""
 
-from .quests import quest, QUEST_REGISTRY, QuestContext, ResultRef
+from .quests import quest, QUEST_REGISTRY, QuestContext
 from .dispatch import dispatch
 from .worker import Worker
 from .queue import InMemoryQueue
@@ -12,7 +12,6 @@ __all__ = [
     "Worker",
     "InMemoryQueue",
     "QuestContext",
-    "ResultRef",
     "ResultDB",
     "QUEST_REGISTRY",
 ]

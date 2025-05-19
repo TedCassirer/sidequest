@@ -25,6 +25,7 @@ async def hello(name):
 
 async def main() -> None:
     db = ResultDB()
+    await db.setup()
     hello_ctx = hello("World")
     await dispatch(hello_ctx)
     worker = Worker(QUEUE, db)

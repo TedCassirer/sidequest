@@ -51,7 +51,11 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         ctx = add(1, 2)
         await dispatch(ctx)
         worker = Worker(QUEUE, self.db)
-        await worker.run_forever()
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
         _, quest_name, result, error, _ = results[0]
@@ -64,7 +68,11 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(ctx, QuestContext)
         await dispatch(ctx)
         worker = Worker(QUEUE, self.db)
-        await worker.run_forever()
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
         _, quest_name, result, error, _ = results[0]
@@ -78,7 +86,11 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         ctx3 = add(ctx1.cast, ctx2.cast)
         await dispatch(ctx3)
         worker = Worker(QUEUE, self.db)
-        await worker.run_forever()
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 3)
         result = await self.db.fetch_result(ctx3.id)
@@ -88,7 +100,11 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         ctx = model_manip(1, _TestModel(name="test", value=2))
         await dispatch(ctx)
         worker = Worker(QUEUE, self.db)
-        await worker.run_forever()
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
         _, quest_name, result, error, _ = results[0]

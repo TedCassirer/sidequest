@@ -7,7 +7,6 @@ from typing import (
     Callable,
     Dict,
     Tuple,
-    Optional,
     TypeVar,
     ParamSpec,
     Generic,
@@ -27,14 +26,6 @@ P_params = ParamSpec("P_params")
 QuestImplementation: TypeAlias = Callable[P_params, Awaitable[T_result]]
 
 QUEST_REGISTRY: Dict[str, "QuestWrapper"] = {}
-
-
-@dataclass
-class ResultRef(Generic[T_result]):
-    """Reference to the result of another quest."""
-
-    context_id: str
-    context: Optional["QuestContext[T_result]"] = None
 
 
 @dataclass
@@ -63,7 +54,7 @@ class QuestWrapper(Generic[P_params, T_result]):
     _queue: InMemoryQueue
     _signature: Signature
 
-    def __call__(self, *args: P_params.args, **kwargs: P_params.kwargs) -> QuestContext:
+    def __call__(self, *args: P_params.args, **kwargs: P_params.kwargs) -> QuestContext[T_result]:
         """Invoke the quest with the given arguments."""
         return QuestContext(self._func.__name__, self._queue, args, kwargs)
 
