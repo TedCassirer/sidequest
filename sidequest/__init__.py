@@ -4,7 +4,7 @@ from .quests import quest, QUEST_REGISTRY, QuestContext
 from .dispatch import dispatch
 from .worker import Worker, BaseWorker
 from .queue import InMemoryQueue
-from .db import ResultDB
+from .db import ResultDB, QuestStatus
 from .workflow import Workflow
 
 __all__ = [
@@ -16,5 +16,6 @@ __all__ = [
     "QuestContext",
     "Workflow",
     "ResultDB",
+    "QuestStatus",
     "QUEST_REGISTRY",
 ]

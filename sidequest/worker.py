@@ -9,7 +9,7 @@ import traceback
 
 from .queue import InMemoryQueue
 from .quests import QUEST_REGISTRY, QuestWrapper
-from .db import ResultDB
+from .db import ResultDB, QuestStatus
 
 
 class BaseWorker(ABC):
@@ -67,7 +67,7 @@ class Worker(BaseWorker):
         kwargs = message.get("kwargs", {})
         fn = QUEST_REGISTRY.get(quest_name)
         if not fn:
-            await self.db.store(
+            await self.db.store_result(
                 context_id, quest_name, None, f"Unknown quest: {quest_name}"
             )
             return
@@ -84,11 +84,13 @@ class Worker(BaseWorker):
                     return {k: await resolve(v) for k, v in value.items()}
                 return value
 
+            await self.db.set_status(context_id, QuestStatus.RUNNING)
+
             args = await resolve(args)
             kwargs = await resolve(kwargs)
             result = await self.execute_quest(fn, args, kwargs)
-            await self.db.store(context_id, quest_name, result, None)
+            await self.db.store_result(context_id, quest_name, result, None)
         except Exception:  # pylint: disable=broad-except
             tb = traceback.format_exc()
-            await self.db.store(context_id, quest_name, None, tb)
+            await self.db.store_result(context_id, quest_name, None, tb)
 

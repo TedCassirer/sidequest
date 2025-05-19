@@ -1,9 +1,10 @@
 """Simple SQLite-based result storage."""
+# pyright: reportMissingImports=false
 
 from typing import Optional, Any
 from datetime import datetime
 
-from sqlalchemy import String, select
+from sqlalchemy import String, select, update
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -11,10 +12,19 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from enum import Enum
+from pydantic import TypeAdapter  # type: ignore[reportAttributeAccessIssue]
 
 from .quests import QUEST_REGISTRY
 
-from pydantic import TypeAdapter
+
+class QuestStatus(str, Enum):
+    """Possible execution states for a quest."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class Base(DeclarativeBase):
@@ -33,6 +43,7 @@ class Result(Base):
     quest_name: Mapped[str] = mapped_column(String)
     result: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default=QuestStatus.PENDING.value)
     timestamp: Mapped[str] = mapped_column(String)
 
 
@@ -52,22 +63,52 @@ class ResultDB:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-    async def store(
+    async def register(self, context_id: str, quest_name: str) -> None:
+        """Register a quest with pending status."""
+
+        async with self.session_factory() as session:
+            session.add(
+                Result(
+                    context_id=context_id,
+                    quest_name=quest_name,
+                    result=None,
+                    error=None,
+                    status=QuestStatus.PENDING.value,
+                    timestamp=datetime.utcnow().isoformat(),
+                )
+            )
+            await session.commit()
+
+    async def set_status(self, context_id: str, status: QuestStatus) -> None:
+        """Update the status for a quest."""
+
+        async with self.session_factory() as session:
+            await session.execute(
+                update(Result)
+                .where(Result.context_id == context_id)
+                .values(status=status.value)
+            )
+            await session.commit()
+
+    async def store_result(
         self,
         context_id: str,
         quest_name: str,
         result: Optional[Any],
         error: Optional[str],
     ) -> None:
+        status = QuestStatus.SUCCESS if error is None else QuestStatus.FAILED
         async with self.session_factory() as session:
-            session.add(
-                Result(
-                    context_id=context_id,
+            await session.execute(
+                update(Result)
+                .where(Result.context_id == context_id)
+                .values(
                     quest_name=quest_name,
                     result=None
                     if result is None
                     else TypeAdapter(Any).dump_json(result).decode(),
                     error=error,
+                    status=status.value,
                     timestamp=datetime.utcnow().isoformat(),
                 )
             )
@@ -81,6 +122,7 @@ class ResultDB:
                     Result.quest_name,
                     Result.result,
                     Result.error,
+                    Result.status,
                     Result.timestamp,
                 )
             )
@@ -97,8 +139,16 @@ class ResultDB:
                 res = TypeAdapter(result_type).validate_json(res_json)
             else:
                 res = None
-            parsed.append((row[0], quest_name, res, row[3], row[4]))
+            parsed.append((row[0], quest_name, res, row[3], row[4], row[5]))
         return parsed
+
+    async def fetch_status(self, context_id: str) -> str | None:
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Result.status).where(Result.context_id == context_id)
+            )
+            row = result.first()
+            return None if row is None else row[0]
 
     async def fetch_result(self, context_id: str) -> Optional[Any]:
         async with self.session_factory() as session:

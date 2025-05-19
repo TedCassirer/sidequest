@@ -101,10 +101,11 @@ async def run_workflow() -> None:
     db = ResultDB()
     await db.setup()
     wf = Workflow(multiply(add(1, 2).cast, add(3, 4).cast))
-    await wf.dispatch()
+    await wf.dispatch(db)
     worker = Worker(QUEUE, db)
     await worker.run_forever()
     print(await wf.result(db))
+    print(await wf.status(db))
 
 asyncio.run(run_workflow())
 ```

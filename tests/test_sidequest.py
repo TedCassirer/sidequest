@@ -11,6 +11,7 @@ from sidequest import (
     ResultDB,
     QuestContext,
     Workflow,
+    QuestStatus,
 )
 
 
@@ -59,10 +60,11 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         await task
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
-        _, quest_name, result, error, _ = results[0]
+        _, quest_name, result, error, status, _ = results[0]
         self.assertEqual(quest_name, "add")
         self.assertEqual(result, 3)
         self.assertIsNone(error)
+        self.assertEqual(status, QuestStatus.SUCCESS.value)
 
     async def test_async_quest_function_returns_context(self) -> None:
         ctx = add(1, 2)
@@ -76,10 +78,11 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         await task
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
-        _, quest_name, result, error, _ = results[0]
+        _, quest_name, result, error, status, _ = results[0]
         self.assertEqual(quest_name, "add")
         self.assertEqual(result, 3)
         self.assertIsNone(error)
+        self.assertEqual(status, QuestStatus.SUCCESS.value)
 
     async def test_workflow_chaining(self) -> None:
         ctx1 = add(1, 2)
@@ -102,7 +105,7 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         ctx2 = add(5, 10)
         root = add(ctx1.cast, ctx2.cast)
         wf = Workflow(root)
-        await wf.dispatch()
+        await wf.dispatch(self.db)
         worker = Worker(QUEUE, self.db)
         task = asyncio.create_task(worker.run_forever())
         while not QUEUE.empty():
@@ -112,6 +115,20 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(wf.contexts()), 3)
         result = await wf.result(self.db)
         self.assertEqual(result, 18)
+
+    async def test_workflow_status_monitor(self) -> None:
+        ctx1 = add(1, 2)
+        ctx2 = add(3, 4)
+        root = add(ctx1.cast, ctx2.cast)
+        wf = Workflow(root)
+        await wf.dispatch(self.db)
+        # all quests registered as pending
+        pending = await wf.status(self.db)
+        self.assertTrue(all(status == QuestStatus.PENDING.value for status in pending.values()))
+        worker = Worker(QUEUE, self.db)
+        await worker.run_forever()
+        final = await wf.status(self.db)
+        self.assertTrue(all(status == QuestStatus.SUCCESS.value for status in final.values()))
 
     async def test_quest_with_model(self) -> None:
         ctx = model_manip(1, _TestModel(name="test", value=2))
@@ -124,10 +141,11 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         await task
         results = await self.db.fetch_all()
         self.assertEqual(len(results), 1)
-        _, quest_name, result, error, _ = results[0]
+        _, quest_name, result, error, status, _ = results[0]
         self.assertEqual(quest_name, "model_manip")
         self.assertEqual(result, _TestModel(name="test_modified", value=3))
         self.assertIsNone(error)
+        self.assertEqual(status, QuestStatus.SUCCESS.value)
 
 
 if __name__ == "__main__":
