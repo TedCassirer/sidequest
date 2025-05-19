@@ -3,41 +3,11 @@
 from typing import Any, Dict
 import traceback
 
-from .queue import InMemoryQueue, AsyncInMemoryQueue
+from .queue import AsyncInMemoryQueue
 from .quests import QUEST_REGISTRY
-from .db import ResultDB, AsyncResultDB
+from .db import AsyncResultDB
 
 
-class Worker:
-    """Worker that consumes quests from a queue and stores results."""
-
-    def __init__(self, queue: InMemoryQueue, db: ResultDB) -> None:
-        self.queue = queue
-        self.db = db
-
-    def run_once(self) -> None:
-        """Process a single quest if available."""
-        if self.queue.empty():
-            return
-        message: Dict[str, Any] = self.queue.receive()
-        quest_name: str = message["quest"]
-        args = message.get("args", [])
-        kwargs = message.get("kwargs", {})
-        fn = QUEST_REGISTRY.get(quest_name)
-        if not fn:
-            self.db.store(quest_name, None, f"Unknown quest: {quest_name}")
-            return
-        try:
-            result = fn(*args, **kwargs)
-            self.db.store(quest_name, result, None)
-        except Exception as exc:  # pylint: disable=broad-except
-            tb = traceback.format_exc()
-            self.db.store(quest_name, None, tb)
-
-    def run_forever(self) -> None:
-        """Continuously process quests until queue is empty."""
-        while not self.queue.empty():
-            self.run_once()
 
 
 class AsyncWorker:
