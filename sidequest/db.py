@@ -1,11 +1,14 @@
 """Simple SQLite-based result storage."""
 
-from typing import Optional, Any
+from typing import Optional, Any, get_type_hints
 from datetime import datetime
 
 from sqlalchemy import String, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+
+from .quests import QUEST_REGISTRY
+
 from pydantic import TypeAdapter
 
 
@@ -75,24 +78,41 @@ class ResultDB:
             rows = result.all()
         parsed: list[tuple] = []
         for row in rows:
-            res = row[2]
-            if res is not None:
-                res = TypeAdapter(Any).validate_json(res)
-            parsed.append((row[0], row[1], res, row[3], row[4]))
+            quest_name = row[1]
+            res_json = row[2]
+            if res_json is not None:
+                fn = QUEST_REGISTRY.get(quest_name)
+                result_type = Any
+                if fn is not None:
+                    try:
+                        result_type = get_type_hints(fn).get("return", Any)
+                    except Exception:  # pragma: no cover - ignore typing issues
+                        result_type = Any
+                res = TypeAdapter(result_type).validate_json(res_json)
+            else:
+                res = None
+            parsed.append((row[0], quest_name, res, row[3], row[4]))
         return parsed
 
     async def fetch_result(self, context_id: str) -> Optional[Any]:
         async with self.session_factory() as session:
             result = await session.execute(
-                select(Result.result).where(Result.context_id == context_id)
+                select(Result.result, Result.quest_name).where(Result.context_id == context_id)
             )
             row = result.first()
             if row is None:
                 return None
-            value = row[0]
+            value, quest_name = row[0], row[1]
             if value is None:
                 return None
-            return TypeAdapter(Any).validate_json(value)
+            fn = QUEST_REGISTRY.get(quest_name)
+            result_type = Any
+            if fn is not None:
+                try:
+                    result_type = get_type_hints(fn).get("return", Any)
+                except Exception:  # pragma: no cover
+                    result_type = Any
+            return TypeAdapter(result_type).validate_json(value)
           
     async def teardown(self) -> None:
         """Drop all tables and dispose of the engine."""
