@@ -1,6 +1,6 @@
 """Simple SQLite-based result storage."""
 
-from typing import Optional, Any, get_type_hints
+from typing import Optional, Any
 from datetime import datetime
 
 from sqlalchemy import String, select
@@ -116,10 +116,7 @@ class ResultDB:
             fn = QUEST_REGISTRY.get(quest_name)
             result_type = Any
             if fn is not None:
-                try:
-                    result_type = get_type_hints(fn).get("return", Any)
-                except Exception:  # pragma: no cover
-                    result_type = Any
+                result_type = fn.return_type
             return TypeAdapter(result_type).validate_json(value)
 
     async def teardown(self) -> None:

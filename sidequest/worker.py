@@ -1,6 +1,7 @@
 """Worker implementation to execute quests from a queue."""
 
 from typing import Any, Dict
+import asyncio
 import traceback
 
 from .queue import InMemoryQueue
@@ -14,6 +15,11 @@ class Worker:
     def __init__(self, queue: InMemoryQueue, db: ResultDB) -> None:
         self.queue = queue
         self.db = db
+        self._stop = False
+
+    def stop(self) -> None:
+        """Signal the worker to stop processing quests."""
+        self._stop = True
 
     async def run_once(self) -> None:
         """Process a single quest if available."""
@@ -52,6 +58,8 @@ class Worker:
             await self.db.store(context_id, quest_name, None, tb)
 
     async def run_forever(self) -> None:
-        """Continuously process quests until queue is empty."""
-        while not self.queue.empty():
+        """Continuously process quests until :meth:`stop` is called."""
+        while not self._stop:
             await self.run_once()
+            if self.queue.empty():
+                await asyncio.sleep(0)
