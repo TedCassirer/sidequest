@@ -1,6 +1,6 @@
-# Sidequest
+# SideQuest
 
-Sidequest is a simple task management library. Tasks, known as *quests*, are
+SideQuest is a simple task management library. Tasks, known as *quests*, are
 registered with the `@quest` decorator. Quests can be dispatched to a message
 queue and later executed by a worker. Results of quest executions are stored in
 a SQLite database.

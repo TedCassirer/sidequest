@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "sidequest"
 version = "0.1.0"
-description = "Sidequest task management library"
+description = "SideQuest task management library"
 authors = []
 
 [tool.poetry.dependencies]
