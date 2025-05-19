@@ -18,7 +18,13 @@ jobs:
           pip install poetry
       - name: Install dependencies
         run: |
-          poetry install --no-interaction
+          poetry install --with dev --no-interaction
+      - name: Run pyright
+        run: |
+          poetry run pyright
+      - name: Run ruff
+        run: |
+          poetry run ruff check .
       - name: Run tests
         run: |
           poetry run pytest

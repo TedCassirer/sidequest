@@ -4,8 +4,9 @@ from typing import Optional, Any, get_type_hints
 from datetime import datetime
 
 from sqlalchemy import String, select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine, \
+    async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from .quests import QUEST_REGISTRY
 
@@ -30,14 +31,13 @@ class Result(Base):
     timestamp: Mapped[str] = mapped_column(String)
 
 
-
 class ResultDB:
     """Asynchronous database using SQLAlchemy."""
 
     def __init__(self, url: str = "sqlite+aiosqlite:///:memory:") -> None:
         self.engine: AsyncEngine = create_async_engine(url, future=True)
-        self.session_factory = sessionmaker(
-            self.engine, expire_on_commit=False, class_=AsyncSession
+        self.session_factory = async_sessionmaker(
+            self.engine, class_=AsyncSession, expire_on_commit=False
         )
 
     async def setup(self) -> None:
@@ -48,7 +48,11 @@ class ResultDB:
             await conn.run_sync(Base.metadata.create_all)
 
     async def store(
-        self, context_id: str, quest_name: str, result: Optional[Any], error: Optional[str]
+        self,
+        context_id: str,
+        quest_name: str,
+        result: Optional[Any],
+        error: Optional[str],
     ) -> None:
         async with self.session_factory() as session:
             session.add(

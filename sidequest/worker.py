@@ -8,8 +8,6 @@ from .quests import QUEST_REGISTRY
 from .db import ResultDB
 
 
-
-
 class Worker:
     """Asynchronous worker that consumes quests from a queue."""
 
@@ -28,7 +26,9 @@ class Worker:
         kwargs = message.get("kwargs", {})
         fn = QUEST_REGISTRY.get(quest_name)
         if not fn:
-            await self.db.store(context_id, quest_name, None, f"Unknown quest: {quest_name}")
+            await self.db.store(
+                context_id, quest_name, None, f"Unknown quest: {quest_name}"
+            )
             return
         try:
             import inspect
