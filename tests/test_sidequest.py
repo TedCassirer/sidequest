@@ -15,6 +15,7 @@ from sidequest import (
 
 QUEUE = InMemoryQueue()
 
+
 class _TestModel(pydantic.BaseModel):
     """A simple model for testing."""
 
@@ -94,6 +95,7 @@ class TestSidequest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(quest_name, "model_manip")
         self.assertEqual(result, _TestModel(name="test_modified", value=3))
         self.assertIsNone(error)
+
 
 if __name__ == "__main__":
     unittest.main()

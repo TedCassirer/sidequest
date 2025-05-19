@@ -4,8 +4,13 @@ from typing import Optional, Any, get_type_hints
 from datetime import datetime
 
 from sqlalchemy import String, select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    create_async_engine,
+    async_sessionmaker,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from .quests import QUEST_REGISTRY
 
@@ -14,6 +19,7 @@ from pydantic import TypeAdapter
 
 class Base(DeclarativeBase):
     """Declarative base class."""
+
     pass
 
 
@@ -30,14 +36,13 @@ class Result(Base):
     timestamp: Mapped[str] = mapped_column(String)
 
 
-
 class ResultDB:
     """Asynchronous database using SQLAlchemy."""
 
     def __init__(self, url: str = "sqlite+aiosqlite:///:memory:") -> None:
         self.engine: AsyncEngine = create_async_engine(url, future=True)
-        self.session_factory = sessionmaker(
-            self.engine, expire_on_commit=False, class_=AsyncSession
+        self.session_factory = async_sessionmaker(
+            self.engine, class_=AsyncSession, expire_on_commit=False
         )
 
     async def setup(self) -> None:
@@ -48,7 +53,11 @@ class ResultDB:
             await conn.run_sync(Base.metadata.create_all)
 
     async def store(
-        self, context_id: str, quest_name: str, result: Optional[Any], error: Optional[str]
+        self,
+        context_id: str,
+        quest_name: str,
+        result: Optional[Any],
+        error: Optional[str],
     ) -> None:
         async with self.session_factory() as session:
             session.add(
@@ -84,10 +93,7 @@ class ResultDB:
                 fn = QUEST_REGISTRY.get(quest_name)
                 result_type = Any
                 if fn is not None:
-                    try:
-                        result_type = get_type_hints(fn).get("return", Any)
-                    except Exception:  # pragma: no cover - ignore typing issues
-                        result_type = Any
+                    result_type = fn.return_type
                 res = TypeAdapter(result_type).validate_json(res_json)
             else:
                 res = None
@@ -97,7 +103,9 @@ class ResultDB:
     async def fetch_result(self, context_id: str) -> Optional[Any]:
         async with self.session_factory() as session:
             result = await session.execute(
-                select(Result.result, Result.quest_name).where(Result.context_id == context_id)
+                select(Result.result, Result.quest_name).where(
+                    Result.context_id == context_id
+                )
             )
             row = result.first()
             if row is None:
@@ -113,7 +121,7 @@ class ResultDB:
                 except Exception:  # pragma: no cover
                     result_type = Any
             return TypeAdapter(result_type).validate_json(value)
-          
+
     async def teardown(self) -> None:
         """Drop all tables and dispose of the engine."""
         async with self.engine.begin() as conn:

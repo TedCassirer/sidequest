@@ -8,8 +8,6 @@ from .quests import QUEST_REGISTRY
 from .db import ResultDB
 
 
-
-
 class Worker:
     """Asynchronous worker that consumes quests from a queue."""
 
@@ -28,10 +26,11 @@ class Worker:
         kwargs = message.get("kwargs", {})
         fn = QUEST_REGISTRY.get(quest_name)
         if not fn:
-            await self.db.store(context_id, quest_name, None, f"Unknown quest: {quest_name}")
+            await self.db.store(
+                context_id, quest_name, None, f"Unknown quest: {quest_name}"
+            )
             return
         try:
-            import inspect
 
             async def resolve(value: Any) -> Any:
                 if isinstance(value, dict) and "__ref__" in value:
@@ -46,11 +45,7 @@ class Worker:
 
             args = await resolve(args)
             kwargs = await resolve(kwargs)
-
-            if inspect.iscoroutinefunction(fn):
-                result = await fn(*args, **kwargs)
-            else:
-                result = fn(*args, **kwargs)
+            result = await fn.accept(*args, **kwargs)
             await self.db.store(context_id, quest_name, result, None)
         except Exception:  # pylint: disable=broad-except
             tb = traceback.format_exc()

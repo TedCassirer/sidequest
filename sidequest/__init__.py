@@ -14,5 +14,5 @@ __all__ = [
     "QuestContext",
     "ResultRef",
     "ResultDB",
-    "QUEST_REGISTRY"
+    "QUEST_REGISTRY",
 ]
