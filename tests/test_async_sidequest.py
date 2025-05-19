@@ -9,7 +9,6 @@ from sidequest import (
     AsyncResultDB,
     QuestContext,
 )
-from sidequest.db import SQLALCHEMY_AVAILABLE
 
 
 ASYNC_QUEUE = AsyncInMemoryQueue()
@@ -21,7 +20,6 @@ async def async_add(a, b):
     return a + b
 
 
-@unittest.skipUnless(SQLALCHEMY_AVAILABLE, "SQLAlchemy is required for async tests")
 class TestAsyncSidequest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         while not ASYNC_QUEUE.empty():
