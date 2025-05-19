@@ -174,6 +174,24 @@ class TestSideQuest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(states[c2.id], "FAILED")
         self.assertEqual(states[root.id], "FAILED")
 
+    async def test_dynamic_dispatch_within_workflow(self) -> None:
+        @quest(queue=QUEUE)
+        async def spawn() -> None:
+            await dispatch(add(10, 20))
+            inner = Workflow(add(1, 2))
+            await inner.dispatch()
+
+        outer = Workflow(spawn())
+        await outer.dispatch()
+        worker = Worker(QUEUE, self.db)
+        task = asyncio.create_task(worker.run_forever())
+        while not QUEUE.empty():
+            await asyncio.sleep(0)
+        worker.stop()
+        await task
+        # spawn plus two add quests should be recorded in the outer workflow
+        self.assertEqual(len(outer.contexts()), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

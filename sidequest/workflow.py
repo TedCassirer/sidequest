@@ -1,12 +1,13 @@
 """Workflow utilities for groups of dependent quests."""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Generic, List, Set, TypeVar
+from dataclasses import dataclass, field
+from typing import Any, Dict, Generic, List, Set, TypeVar
 
 from .quests import QuestContext
 from .dispatch import dispatch
 from .db import ResultDB
+from .runtime import ACTIVE_WORKFLOW, WORKFLOW_MAP
 
 T_result = TypeVar("T_result")
 
@@ -39,14 +40,33 @@ class Workflow(Generic[T_result]):
     """Collection of quests that form a workflow."""
 
     root: QuestContext[T_result]
+    _contexts: Dict[str, QuestContext[Any]] = field(default_factory=dict, init=False)
+
+    def __post_init__(self) -> None:
+        for ctx in _collect_contexts(self.root, set()):
+            self._contexts[ctx.id] = ctx
+        WORKFLOW_MAP[self.root.id] = self
+
+    def add_context(self, ctx: QuestContext[Any]) -> None:
+        for c in _collect_contexts(ctx, set()):
+            self._contexts.setdefault(c.id, c)
 
     def contexts(self) -> List[QuestContext[Any]]:
         """Return all quest contexts in the workflow."""
-        return _collect_contexts(self.root, set())
+        return list(self._contexts.values())
 
     async def dispatch(self, db: ResultDB | None = None) -> None:
         """Dispatch all quests in the workflow."""
-        await dispatch(self.root, db)
+        active = ACTIVE_WORKFLOW.get(None)
+        if active is not None and active != self.root.id:
+            await dispatch(self.root, db)
+            return
+
+        token = ACTIVE_WORKFLOW.set(self.root.id)
+        try:
+            await dispatch(self.root, db)
+        finally:
+            ACTIVE_WORKFLOW.reset(token)
 
     async def result(self, db: ResultDB) -> T_result | None:
         """Fetch the result of the root quest from the database."""
