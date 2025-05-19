@@ -119,6 +119,15 @@ class ResultDB:
                 result_type = fn.return_type
             return TypeAdapter(result_type).validate_json(value)
 
+    async def exists(self, context_id: str) -> bool:
+        """Return ``True`` if a result entry with the given context id exists."""
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(Result.id).where(Result.context_id == context_id)
+            )
+            row = result.first()
+            return row is not None
+
     async def teardown(self) -> None:
         """Drop all tables and dispose of the engine."""
         async with self.engine.begin() as conn:
