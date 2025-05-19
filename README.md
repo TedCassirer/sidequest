@@ -6,19 +6,28 @@ queue and later executed by a worker. Results of quest executions are stored in
 a SQLite database.
 
 ```python
-from sidequest import quest, dispatch, Worker, InMemoryQueue, ResultDB
+from sidequest import (
+    quest,
+    adispatch,
+    AsyncWorker,
+    AsyncInMemoryQueue,
+    AsyncResultDB,
+)
+import asyncio
 
-QUEUE = InMemoryQueue()
+QUEUE = AsyncInMemoryQueue()
 
 @quest(queue=QUEUE)
-def hello(name):
+async def hello(name):
     return f"Hello {name}!"
 
-db = ResultDB()
-hello_ctx = hello("World")
-dispatch(hello_ctx)
-worker = Worker(QUEUE, db)
-worker.run_forever()
+async def main() -> None:
+    db = AsyncResultDB()
+    hello_ctx = hello("World")
+    await adispatch(hello_ctx)
+    worker = AsyncWorker(QUEUE, db)
+    await worker.run_forever()
+    print(await db.fetch_all())
 
-print(db.fetch_all())
+asyncio.run(main())
 ```
